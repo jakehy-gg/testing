@@ -42,6 +42,7 @@ function fetchProducts() {
                   }
 
                   metafields(identifiers: [
+                    { namespace: "custom", key: "compareprice" },
                     { namespace: "custom", key: "mobilefeatures" },
                     { namespace: "custom", key: "type" },
                     { namespace: "custom", key: "brand" },
@@ -164,7 +165,7 @@ function fetchProducts() {
                         price: parseFloat(node.priceRange.minVariantPrice.amount),
                         compare_at_price: parseFloat(node.priceRange.maxVariantPrice.amount),
                         currency: node.priceRange.minVariantPrice.currencyCode,
-
+                        compareprice: parseFloat(metafields.compareprice),
                         rating: parseFloat(metafields.rating),
                         reviews: parseInt(metafields.reviews),
                         bestseller: metafields.bestseller === "true",
@@ -192,9 +193,11 @@ function fetchProducts() {
 
                 populateSlider(product);
                 populateThumbnails(product);
+                populateReviewPhotos(product);
                 initProductSlider();
                 populateProductInfo(product);
                 populateApproxPrice(product);
+                
                 resolve(products);
             })
             .catch(err => {
@@ -219,22 +222,31 @@ async function convertPrice(amount, fromCurrency, toCurrency) {
 }
 
 function detectUserCurrency() {
-    const locale = navigator.language || "en-GB";
-    const country = locale.split("-")[1];
+  const locale = navigator.language || "en-GB";
+  const parts = locale.split("-");
+  const lang = parts[0];
+  const country = parts[1];
 
-    const currencyMap = {
-        "GB": "GBP",
-        "US": "USD",
-        "FR": "EUR",
-        "DE": "EUR",
-        "ES": "EUR",
-        "IT": "EUR",
-        "CA": "CAD",
-        "AU": "AUD"
-    };
+  const currencyMap = {
+    "GB": "GBP",
+    "US": "USD",
+    "FR": "EUR",
+    "DE": "EUR",
+    "ES": "EUR",
+    "IT": "EUR",
+    "CA": "CAD",
+    "AU": "AUD",
 
-    return currencyMap[country] || "GBP";
+    // language-only fallbacks
+    "fr": "EUR",
+    "de": "EUR",
+    "es": "EUR",
+    "it": "EUR"
+  };
+
+  return currencyMap[country] || currencyMap[lang] || "GBP";
 }
+
 
 async function populateApproxPrice(product) {
   const approxEl = document.querySelector(".approx-price");
@@ -264,6 +276,35 @@ async function populateApproxPrice(product) {
 
 
 // --------------------------- POPULATE SLIDER & THUMBNAILS --------------------------- //
+
+function populateReviewPhotos(product) {
+  const track = document.querySelector(".slider-track");
+  if (!track) return;
+
+  // Clear old slides
+  track.innerHTML = "";
+
+  // If no photos, do nothing
+  if (!product.review_photos || product.review_photos.length === 0) {
+    return;
+  }
+
+  product.review_photos.forEach(url => {
+    const slide = document.createElement("div");
+    slide.classList.add("slide");
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.loading = "lazy";
+    img.alt = "";
+    img.classList.add("review-image");
+
+    slide.appendChild(img);
+    track.appendChild(slide);
+  });
+}
+
+
 
 function populateSlider(product) {
     const slider = document.querySelector(".mainimage-list");
@@ -329,7 +370,7 @@ function populateProductInfo(product) {
   const formattedCompare = new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP"
-  }).format(product.compare_at_price) + " GBP";
+  }).format(product.compareprice) + " GBP";
 
   document.querySelector(".product-compareprice").textContent = formattedCompare;
 
